@@ -2,18 +2,28 @@
 
 Push events to consumer using OpenResty + Redis.
 
-Example 1: subscribe to id1 and id2 on 'footopic'.
+## Examples
 
-curl -H "Accept: text/event-stream" http://redpubsub.xyz/sub/footopic/id1,id2
+*Subscribe to id1 and id2 on 'footopic'.*
 
-Example 2: write json to id1 on footopic.
+```curl -H "Accept: text/event-stream" http://redpubsub.xyz/sub/footopic/id1,id2
+```
 
-curl -X POST -d '{"data":"value"}' http://redpubsub.xyz/pub/footopic/id1
+*Write json to id1 on footopic.*
 
-Consumers subscribe to list of N topics, each connection looks like:
+```curl -X POST -d '{"data":"value"}' http://redpubsub.xyz/pub/footopic/id1
+```
+
+## Architecture
+
+Consumers subscribe to list of N topics and each connection looks like:
 
 ```
 Consumer => (http) => OpenResty => (multiple subscribes over 1 tcp socket) => Redis
 ```
 
-When a consumer connects they will receive the most recent message.
+When a consumer connects they will receive the most recent message on the relevant topics.
+
+## Why?
+
+This is not the most performant way of pushing to N consumers (putting full consumer load onto Redis), but it can be scaled and it is architecturally very simple.
