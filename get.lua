@@ -8,14 +8,16 @@ _M.subscribe = function(redis)
 
   redis:multi()
   for i = 1, #details do
-    local initial_state = redis:get(details[i])
-    ngx.say(initial_state)
-    ngx.flush()
+    redis:get(details[i])
   end
   for i = 1, #details do
     redis:subscribe(details[i])
   end
-  redis:exec()
+  local initial_states = redis:exec()
+  for i = 1, #details do
+    ngx.say(initial_states[i])
+  end
+  ngx.flush()
   local err = nil
   local res
 
