@@ -6,12 +6,14 @@ Push events to consumer using OpenResty + Redis.
 
 *Subscribe to id1 and id2 on 'footopic'.*
 
-```curl -H "Accept: text/event-stream" http://redpubsub.xyz/sub/footopic/id1,id2
+```
+curl -H "Accept: text/event-stream" http://redpubsub.xyz/sub/footopic/id1,id2
 ```
 
 *Write json to id1 on footopic.*
 
-```curl -X POST -d '{"data":"value"}' http://redpubsub.xyz/pub/footopic/id1
+```
+curl -X POST -d '{"data":"value"}' http://redpubsub.xyz/pub/footopic/id1
 ```
 
 ## Architecture
