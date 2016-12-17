@@ -68,8 +68,25 @@ _M.poll = function(redis)
     md5:update(initial_states[i])
   end
   local digest = md5:final()
-  local content_etag = str.to_hex(digest)
+  local content_etag = resty_str.to_hex(digest)
   local consumer_etag = ngx.var.http_if_none_match
+  ngx.header.etag = content_etag
+
+  -- do etags match? if yes then already have this, wait for the next thing and send just it
+  -- not match? send what we have with a tag
+  -- 
+  if content_etag ~= consumer_etag then
+    -- we differ from consumer, send our state
+    for i = 1, #initial_states do
+      -- pull out the responses to the GETs
+      ngx.say(initial_states[i])
+    end
+    ngx.flush()
+  else
+    -- we match consumer, wait for state change
+    
+  end
+
   -- check etag
   -- check last modified
   
