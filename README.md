@@ -29,3 +29,9 @@ When a consumer connects they will receive the most recent message on the releva
 ## Why?
 
 This is not the most performant way of pushing to N consumers (putting full consumer load onto Redis), but it can be scaled and it is architecturally very simple.
+
+## Running
+
+```
+/usr/local/openresty/nginx/sbin/nginx -p .
+```
