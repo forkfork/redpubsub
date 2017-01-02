@@ -11,11 +11,11 @@ local get_and_sub = function(redis, subject, details)
   redis:multi()
   for i = 1, #details do
     -- queue up GETs in multi
-    redis:get(details[i])
+    redis:get(subject .. "/" .. details[i])
   end
   for i = 1, #details do
     -- list subscriptions
-    redis:subscribe(details[i])
+    redis:subscribe(subject .. "/" .. details[i])
   end
   -- exec queued items
   local queued_items = redis:exec()
@@ -65,7 +65,9 @@ _M.poll = function(redis)
   local md5 = resty_md5:new()
   for i = 1, #initial_states do
     -- pull out the responses to the GETs
-    md5:update(initial_states[i])
+    if initial_states[i] ~= ngx.null then
+      md5:update(initial_states[i])
+    end
   end
   local digest = md5:final()
   local content_etag = resty_str.to_hex(digest)
@@ -79,11 +81,33 @@ _M.poll = function(redis)
     -- we differ from consumer, send our state
     for i = 1, #initial_states do
       -- pull out the responses to the GETs
-      ngx.say(initial_states[i])
+      if initial_states[i] ~= ngx.null then
+        ngx.say(initial_states[i])
+      end
     end
     ngx.flush()
   else
     -- we match consumer, wait for state change
+    local err = nil
+    local res
+    while not err do
+      res, err = redis:read_reply()
+      if res then
+        ngx.say(res[3])
+        ngx.flush()
+        break
+      else
+        if err == "timeout" then
+          ngx.status = 304
+          ngx.log(ngx.ERR, "TIMEOUT")
+          break
+        else
+          ngx.log(ngx.ERR, "OTHER ERROR")
+          ngx.log(ngx.ERR, err)
+          break
+        end
+      end
+    end
     
   end
 
