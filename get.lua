@@ -26,18 +26,20 @@ local get_and_sub = function(redis, subject, details)
   return initial_states
 end
 
-local calc_md5 = function(values, names, override_name, override_value)
-  -- calculate md5 for set of values - allow an override
+local override_arraypair = function(names, values, override_name, override_value)
+  for i = 1, #values do
+    if names[i] == override_name then
+      values[i] = override_value
+    end
+  end
+end
+
+local calc_md5 = function(values)
+  -- calculate md5 for set of values
   local md5 = resty_md5:new()
   for i = 1, #values do
-    local digest_value
-    if names[i] == override_name then
-      digest_value = override_value
-    else
-      digest_value = values[i]
-    end
-    if digest_value ~= ngx.null then
-      md5:update(digest_value)
+    if values[i] ~= ngx.null then
+      md5:update(values[i])
     end
   end
   local digest = md5:final()
@@ -46,6 +48,8 @@ end
 
 _M.subscribe = function(redis)
 
+  -- subject - the namespace
+  -- details - the list of ids being subscribed to within the namespace
   local subject, details = cuturl.sub(ngx.var.uri)
   for i = 1, #details do
     details[i] = subject .. "/" .. details[i]
@@ -79,14 +83,15 @@ end
 
 _M.poll = function(redis)
   
-  
+  -- subject - the namespace
+  -- details - the list of ids being subscribed to within the namespace
   local subject, details = cuturl.sub(ngx.var.uri)
   for i = 1, #details do
     details[i] = subject .. "/" .. details[i]
   end
   local initial_states = get_and_sub(redis, subject, details)
  
-  local content_etag = calc_md5(initial_states, details)
+  local content_etag = calc_md5(initial_states)
   local consumer_etag = ngx.var.http_if_none_match
 
   -- do etags match? if yes then already have this, wait for the next thing and send just it
@@ -109,7 +114,8 @@ _M.poll = function(redis)
     while not err do
       res, err = redis:read_reply()
       if not err then
-        local upd_etag = calc_md5(initial_states, details, res[2], res[3])
+        override_arraypair(details, initial_states, res[2], res[3])
+        local upd_etag = calc_md5(initial_states)
         ngx.header["ETag"] = upd_etag
         ngx.say(res[3])
         break
@@ -117,7 +123,7 @@ _M.poll = function(redis)
         if err == "timeout" then
           -- actually nginx seems to do this for us from the matching etag, but to make this greppable
           ngx.status = 304
-          ngx.header["ETag"] = customer_etag
+          ngx.header["ETag"] = consumer_etag
           ngx.log(ngx.ERR, "TIMEOUT")
           break
         else
