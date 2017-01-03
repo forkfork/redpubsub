@@ -1,8 +1,7 @@
 local _M = {}
 
 local cuturl = require("cuturl")
-local resty_md5 = require "resty.md5"
-local resty_str = require "resty.string"
+local util = require("util")
 
 local get_and_sub = function(redis, subject, details)
   -- atomically (wrapped in multi+exec) read state for [details] keys in $subject
@@ -24,26 +23,6 @@ local get_and_sub = function(redis, subject, details)
     initial_states[i] = queued_items[i]
   end
   return initial_states
-end
-
-local override_arraypair = function(names, values, override_name, override_value)
-  for i = 1, #values do
-    if names[i] == override_name then
-      values[i] = override_value
-    end
-  end
-end
-
-local calc_md5 = function(values)
-  -- calculate md5 for set of values
-  local md5 = resty_md5:new()
-  for i = 1, #values do
-    if values[i] ~= ngx.null then
-      md5:update(values[i])
-    end
-  end
-  local digest = md5:final()
-  return resty_str.to_hex(digest)
 end
 
 _M.subscribe = function(redis)
@@ -91,7 +70,7 @@ _M.poll = function(redis)
   end
   local initial_states = get_and_sub(redis, subject, details)
  
-  local content_etag = calc_md5(initial_states)
+  local content_etag = util.calc_md5(initial_states)
   local consumer_etag = ngx.var.http_if_none_match
 
   -- do etags match? if yes then already have this, wait for the next thing and send just it
@@ -109,20 +88,18 @@ _M.poll = function(redis)
     ngx.flush()
   else
     -- we match consumer, wait for state change
-    local err = nil
-    local res
+    local err, res
     while not err do
       res, err = redis:read_reply()
       if not err then
-        override_arraypair(details, initial_states, res[2], res[3])
-        local upd_etag = calc_md5(initial_states)
+        util.override_arraypair(details, initial_states, res[2], res[3])
+        local upd_etag = util.calc_md5(initial_states)
         ngx.header["ETag"] = upd_etag
         ngx.say(res[3])
         break
       else
         if err == "timeout" then
-          -- actually nginx seems to do this for us from the matching etag, but to make this greppable
-          ngx.status = 304
+          -- nginx will set the status to 304 here due to matching ETag
           ngx.header["ETag"] = consumer_etag
           ngx.log(ngx.ERR, "TIMEOUT")
           break
@@ -133,14 +110,7 @@ _M.poll = function(redis)
         end
       end
     end
-    
   end
-
-  -- check etag
-  -- check last modified
-  
-  -- check if none match
-  -- check if modified since
 end
 
 return _M
