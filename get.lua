@@ -35,7 +35,7 @@ _M.subscribe = function(redis)
   end
   local initial_states = get_and_sub(redis, subject, details)
   for i = 1, #initial_states do
-    ngx.say(initial_states)
+    ngx.say(initial_states[i])
   end
   ngx.flush()
   
@@ -45,6 +45,8 @@ _M.subscribe = function(redis)
   while not err do
     res, err = redis:read_reply()
     if res then
+      ngx.log(ngx.ERR, "subject is " .. res[2])
+      ngx.log(ngx.ERR, "details is " .. res[3])
       ngx.say(res[3])
       ngx.flush()
     else
@@ -82,7 +84,11 @@ _M.poll = function(redis)
     for i = 1, #initial_states do
       -- pull out the responses to the GETs
       if initial_states[i] ~= ngx.null then
-        ngx.say(initial_states[i])
+        if i == #initial_states then
+          ngx.print(initial_states[i])
+        else
+          ngx.say(initial_states[i])
+        end
       end
     end
     ngx.flush()
