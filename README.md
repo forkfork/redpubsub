@@ -34,4 +34,11 @@ This is not the most performant way of pushing to N consumers (putting full cons
 
 ```
 /usr/local/openresty/nginx/sbin/nginx -p .
+
+# or with docker (host networking to access local redis for now)
+
+docker build -t redpubsub .
+docker run -it --net=host redpubsub
+
 ```
+
