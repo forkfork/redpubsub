@@ -2,8 +2,10 @@ local _M = {}
 
 _M.subscribe = function(redis)
   local res, err = redis:get("snapshot:scores")
-  ngx.say(res)
-  ngx.flush()
+  if res ~= ngx.null then
+    ngx.say(res)
+    ngx.flush()
+  end
   redis:subscribe("delta:scores")
   while not err do
     res, err = redis:read_reply()
@@ -34,5 +36,7 @@ end
 _M.snapshot = function(redis)
   ngx.req.read_body()
   local body_data = ngx.req.get_body_data()
-  redis:publish("delta:snapshot", body_data)
+  redis:set("delta:snapshot", body_data, "ex", 60*20)
 end
+
+return _M
