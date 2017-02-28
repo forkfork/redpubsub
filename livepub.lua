@@ -36,7 +36,7 @@ end
 _M.snapshot = function(redis)
   ngx.req.read_body()
   local body_data = ngx.req.get_body_data()
-  redis:set("delta:snapshot", body_data, "ex", 60*20)
+  redis:set("snapshot:scores", body_data, "ex", 60*20)
 end
 
 return _M
